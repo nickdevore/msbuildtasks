@@ -10,6 +10,7 @@
   </PropertyGroup>
   
   <Import Project="$(MSBuildCommunityTasksPath)\MSBuild.Community.Tasks.targets"/>
+  <Import Project="$(ToolFolder)\ILRepack.MSBuild.Task\build\ILRepack.MSBuild.Task.targets"/>
   
   <PropertyGroup>
     <BuildNumber Condition=" '$(APPVEYOR_BUILD_NUMBER)' != '' ">$(APPVEYOR_BUILD_NUMBER)</BuildNumber>
@@ -19,7 +20,7 @@
     <BuildConfiguration  Condition=" '$(BuildConfiguration)' == '' ">Release</BuildConfiguration>
 
     <Major Condition=" '$(Major)' == '' ">1</Major>
-    <Minor Condition=" '$(Minor)' == '' ">4</Minor>
+    <Minor Condition=" '$(Minor)' == '' ">5</Minor>
     <Patch Condition=" '$(Patch)' == '' ">0</Patch>
 
     <AssemblyVersion>$(Major).$(Minor).0.0</AssemblyVersion>
@@ -46,7 +47,9 @@
       <Output TaskParameter="Year" PropertyName="Year" />
     </Time>
 
-    <Message Text="Version: $(AssemblyInformationalVersion)"/>
+    <Message Text="AssemblyVersion: $(AssemblyVersion)"/>
+    <Message Text="AssemblyFileVersion: $(AssemblyFileVersion)"/>
+    <Message Text="PackageVersion: $(PackageVersion)"/>
 
     <AssemblyInfo CodeLanguage="CS"
                   OutputFile="$(SourceFolder)\GlobalAssemblyInfo.cs"
@@ -86,12 +89,17 @@
           DestinationFiles="$(BuildFolder)\MSBuild.Temp.dll" />
 
     <!-- Merge together files -->
-    <ILMerge InputAssemblies="$(BuildFolder)\MSBuild.Temp.dll;$(BuildFolder)\Ionic.Zip.Reduced.dll"
-             Internalize="true"
-             OutputFile="$(BuildFolder)\MSBuild.Community.Tasks.dll"
-             KeyFile="$(SourceFolder)\MSBuild.Community.Tasks\MSBuild.Community.Tasks.snk"
-             ToolPath="$(ToolFolder)\ilmerge\tools" />
-
+    <ItemGroup>
+      <InputAssemblies Include="$(BuildFolder)\MSBuild.Temp.dll" />
+      <InputAssemblies Include="$(BuildFolder)\Ionic.Zip.Reduced.dll" />
+    </ItemGroup>
+    
+    <ILRepack Internalize="true"
+              InputAssemblies="@(InputAssemblies)"
+              TargetKind="Dll"
+              KeyFile="$(SourceFolder)\MSBuild.Community.Tasks\MSBuild.Community.Tasks.snk"
+              OutputFile="$(BuildFolder)\MSBuild.Community.Tasks.dll" />
+    
     <!-- Cleanup unneed files -->
     <ItemGroup>
       <CleanupFiles Include="$(BuildFolder)\*.dll" Exclude="$(BuildFolder)\MSBuild.Community.Tasks.dll" />
@@ -128,8 +136,7 @@
   </Target>
 
   <Target Name="Pack" DependsOnTargets="Merge">
-    <NuGetPack ToolPath="$(SourceFolder)\.nuget"
-               File="MSBuildTasks.nuspec"
+    <NuGetPack File="MSBuildTasks.nuspec"
                OutputDirectory="$(MSBuildProjectDirectory)"
                Version="$(PackageVersion)"
                Symbols="true"  />
